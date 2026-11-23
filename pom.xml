@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  POM AGREGADOR DEL PROYECTO TIENDA VIRTUAL
+  Permite construir los 5 modulos Java con un unico comando:
+      mvnw.cmd clean install
+  Cada microservicio define su propio parent (spring-boot-starter-parent).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.tienda</groupId>
+    <artifactId>tienda-virtual</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>tienda-virtual</name>
+    <description>POM agregador del sistema de tienda virtual con arquitectura de microservicios</description>
+
+    <modules>
+        <module>api-gateway</module>
+        <module>microservicio-usuarios</module>
+        <module>microservicio-productos</module>
+        <module>microservicio-pedidos</module>
+        <module>microservicio-pagos</module>
+    </modules>
+</project>

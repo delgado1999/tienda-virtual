@@ -1,0 +1,153 @@
+# =====================================================================
+# DOCKER COMPOSE - SISTEMA DE TIENDA VIRTUAL (MICROSERVICIOS)
+# Levantar todo el sistema con:
+#     docker compose up --build
+# Detener:
+#     docker compose down
+# Detener y borrar datos persistidos:
+#     docker compose down -v
+# Ver logs de un servicio:
+#     docker compose logs -f microservicio-pedidos
+# =====================================================================
+services:
+
+  # ------------------------------- BASE DE DATOS -------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: tienda-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_USER: ${MYSQL_USER:-tienda}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-tienda123}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Los scripts .sql se ejecutan automaticamente la primera vez que se crea el volumen
+      - ./database:/docker-entrypoint-initdb.d:ro
+    networks:
+      - tienda-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  # ------------------------------- MICROSERVICIOS ------------------------------
+  microservicio-usuarios:
+    build: ./microservicio-usuarios
+    container_name: microservicio-usuarios
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/db_usuarios?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-tienda}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-tienda123}
+      JWT_SECRET: ${JWT_SECRET:-ClaveSecretaSuperSeguraParaLaTiendaVirtual2025CambiarEnProduccion}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      ADMIN_NOMBRE: ${ADMIN_NOMBRE:-Administrador General}
+      ADMIN_CORREO: ${ADMIN_CORREO:-admin@tienda.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123}
+    ports:
+      - "${USUARIOS_PORT:-8081}:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - tienda-net
+
+  microservicio-productos:
+    build: ./microservicio-productos
+    container_name: microservicio-productos
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/db_productos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-tienda}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-tienda123}
+    ports:
+      - "${PRODUCTOS_PORT:-8082}:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - tienda-net
+
+  microservicio-pedidos:
+    build: ./microservicio-pedidos
+    container_name: microservicio-pedidos
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/db_pedidos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-tienda}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-tienda123}
+      PRODUCTOS_URI: http://microservicio-productos:8082
+    ports:
+      - "${PEDIDOS_PORT:-8083}:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      microservicio-productos:
+        condition: service_started
+    networks:
+      - tienda-net
+
+  microservicio-pagos:
+    build: ./microservicio-pagos
+    container_name: microservicio-pagos
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/db_pagos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-tienda}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-tienda123}
+      PEDIDOS_URI: http://microservicio-pedidos:8083
+    ports:
+      - "${PAGOS_PORT:-8084}:8084"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      microservicio-pedidos:
+        condition: service_started
+    networks:
+      - tienda-net
+
+  # ------------------------------- API GATEWAY ---------------------------------
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    restart: unless-stopped
+    environment:
+      USUARIOS_URI: http://microservicio-usuarios:8081
+      PRODUCTOS_URI: http://microservicio-productos:8082
+      PEDIDOS_URI: http://microservicio-pedidos:8083
+      PAGOS_URI: http://microservicio-pagos:8084
+      JWT_SECRET: ${JWT_SECRET:-ClaveSecretaSuperSeguraParaLaTiendaVirtual2025CambiarEnProduccion}
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      - microservicio-usuarios
+      - microservicio-productos
+      - microservicio-pedidos
+      - microservicio-pagos
+    networks:
+      - tienda-net
+
+  # ------------------------------- FRONTEND ------------------------------------
+  frontend:
+    build: ./frontend
+    container_name: tienda-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8085}:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - tienda-net
+
+networks:
+  tienda-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local

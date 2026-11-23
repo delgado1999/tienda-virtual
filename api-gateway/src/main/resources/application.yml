@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      # Unica estrategia CORS del sistema: se centraliza aqui mediante globalcors.
+      # No se registra ningun CorsWebFilter adicional para evitar configuraciones duplicadas.
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+      # Rutas del punto unico de entrada. Las URIs son configurables por variables de entorno
+      # (no se usa Eureka ni balanceo lb://, cada destino es una URI directa).
+      routes:
+        - id: ruta-usuarios
+          uri: ${USUARIOS_URI:http://localhost:8081}
+          predicates: [ Path=/api/usuarios/** ]
+          filters: [ StripPrefix=1 ]
+        - id: ruta-auth
+          uri: ${USUARIOS_URI:http://localhost:8081}
+          predicates: [ Path=/api/auth/** ]
+          filters: [ StripPrefix=1 ]
+        - id: ruta-productos
+          uri: ${PRODUCTOS_URI:http://localhost:8082}
+          predicates: [ Path=/api/productos/** ]
+          filters: [ StripPrefix=1 ]
+        - id: ruta-ventas
+          uri: ${PEDIDOS_URI:http://localhost:8083}
+          predicates: [ Path=/api/ventas/** ]
+          filters: [ StripPrefix=1 ]
+        - id: ruta-pagos
+          uri: ${PAGOS_URI:http://localhost:8084}
+          predicates: [ Path=/api/pagos/** ]
+          filters: [ StripPrefix=1 ]
+
+# ---- Parametros de seguridad JWT (misma clave usada por el microservicio de usuarios) ----
+jwt:
+  secret: ${JWT_SECRET:ClaveSecretaSuperSeguraParaLaTiendaVirtual2025CambiarEnProduccion}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

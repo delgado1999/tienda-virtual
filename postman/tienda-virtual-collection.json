@@ -1,0 +1,674 @@
+{
+  "info": {
+    "_postman_id": "b7f1a2c4-9d3e-4a56-8c21-tiendavirtual01",
+    "name": "Tienda Virtual - API (Microservicios)",
+    "description": "Coleccion Postman del sistema de Tienda Virtual con arquitectura de microservicios.\n\nTodas las peticiones se realizan contra el API Gateway (http://localhost:8080/api), que es el punto unico de entrada del sistema.\n\nANTES DE EJECUTAR: \n1) Arrancar el sistema (docker compose up --build o los servicios en local).\n2) Ejecutar primero la request 'Login' de la carpeta Usuarios: el script de test guarda automaticamente el token JWT en la variable de coleccion {{token}}.\n3) Las requests marcadas como (ADMIN) requieren iniciar sesion con el usuario administrador (admin@tienda.com / Admin123).\n\nAutenticacion a nivel de coleccion: Bearer {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Usuarios",
+      "description": "Registro de usuarios, autenticacion (login JWT) y gestion administrativa de usuarios.",
+      "item": [
+        {
+          "name": "Registrar usuario (publico)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Juan Perez\",\n  \"correo\": \"juan@correo.com\",\n  \"password\": \"Secreta123\",\n  \"direccion\": \"Av. Lima 100\",\n  \"telefono\": \"987654321\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "description": "Ruta PUBLICA (no requiere token). Registra un nuevo usuario con rol CLIENTE.\n\nRespuesta esperada: 201 Created\n{\n  \"idUsuario\": 3,\n  \"nombre\": \"Juan Perez\",\n  \"correo\": \"juan@correo.com\",\n  \"direccion\": \"Av. Lima 100\",\n  \"telefono\": \"987654321\",\n  \"rol\": \"CLIENTE\",\n  \"estado\": true,\n  \"fechaRegistro\": \"2025-01-01T10:00:00\"\n}\n\nSi el correo ya existe, responde 400/409 con el error de negocio correspondiente."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (guardar token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"token\", pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@tienda.com\",\n  \"password\": \"Admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Ruta PUBLICA. Autentica al usuario y devuelve un token JWT (HS256).\nEl script de test guarda el token en la variable de coleccion {{token}} para el resto de peticiones.\n\nAdministrador: admin@tienda.com / Admin123\nCliente: cliente@tienda.com / Cliente123\n\nRespuesta esperada: 200 OK\n{\n  \"token\": \"eyJhbGciOiJIUzI1NiJ9...\",\n  \"tipo\": \"Bearer\",\n  \"idUsuario\": 1,\n  \"nombre\": \"Administrador General\",\n  \"correo\": \"admin@tienda.com\",\n  \"rol\": \"ADMIN\"\n}\n\nCon credenciales incorrectas responde 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar usuario (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "1"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Consulta un usuario por su id.\n\nRespuesta esperada: 200 OK con el objeto del usuario (idUsuario, nombre, correo, direccion, telefono, rol, estado).\nSi no existe: 404. Si el token no es ADMIN: 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar usuarios (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Devuelve la lista completa de usuarios.\n\nRespuesta esperada: 200 OK con un arreglo JSON de usuarios.\nSi el token no es ADMIN: 403. Sin token: 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar usuario (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/1/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "1",
+                "estado"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Activa o desactiva un usuario (baja logica).\n\nRespuesta esperada: 200 OK con el usuario actualizado y estado=false.\nSi el token no es ADMIN: 403."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "description": "Catalogo de productos. La lectura es publica; la gestion (crear/editar/eliminar/stock) es exclusiva de ADMIN.",
+      "item": [
+        {
+          "name": "Crear producto (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Mouse Gamer\",\n  \"descripcion\": \"Mouse RGB 8000 DPI\",\n  \"precio\": 99.90,\n  \"stock\": 50,\n  \"imagen\": \"https://ejemplo.com/mouse.jpg\",\n  \"categoria\": \"Accesorios\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Crea un producto en el catalogo.\n\nRespuesta esperada: 201 Created con el producto creado (idProducto, nombre, precio, stock, categoria, estado=true).\nSi el token no es ADMIN: 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar productos (publico)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            },
+            "description": "Ruta PUBLICA. Lista los productos activos del catalogo.\n\nRespuesta esperada: 200 OK con un arreglo JSON de productos."
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar productos (publico)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos?nombre=Mouse&categoria=Accesorios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "nombre",
+                  "value": "Mouse"
+                },
+                {
+                  "key": "categoria",
+                  "value": "Accesorios"
+                }
+              ]
+            },
+            "description": "Ruta PUBLICA. Busca productos por nombre y/o categoria (filtros opcionales y combinables).\n\nRespuesta esperada: 200 OK con los productos que coinciden con los filtros."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar producto (publico)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "1"
+              ]
+            },
+            "description": "Ruta PUBLICA. Consulta un producto por su id.\n\nRespuesta esperada: 200 OK con el producto. Si no existe: 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar producto (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Mouse Gamer RGB Pro\",\n  \"descripcion\": \"Mouse RGB 12000 DPI\",\n  \"precio\": 129.90,\n  \"stock\": 45,\n  \"imagen\": \"https://ejemplo.com/mouse-pro.jpg\",\n  \"categoria\": \"Accesorios\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "1"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Actualiza los datos de un producto existente.\n\nRespuesta esperada: 200 OK con el producto actualizado.\nSi el token no es ADMIN: 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar stock (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos/1/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "1",
+                "stock"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Fija el stock de un producto.\n\nRespuesta esperada: 200 OK con el producto y su nuevo stock. El stock no puede ser negativo."
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar producto (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "1"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Baja LOGICA del producto: marca estado=false (no se borra la fila).\nUn producto desactivado ya no puede comprarse.\n\nRespuesta esperada: 204 No Content.\nSi el token no es ADMIN: 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar categorias (publico)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/productos/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos",
+                "categorias"
+              ]
+            },
+            "description": "Ruta PUBLICA. Devuelve las categorias disponibles.\n\nRespuesta esperada: 200 OK\n[\"Accesorios\",\"Audio\",\"Hogar\",\"Libros\",\"Ropa\",\"Tecnologia\"]"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "description": "Registro de pedidos/ventas. Crear y consultar requiere token valido; el listado completo y el cambio de estado son exclusivos de ADMIN.",
+      "item": [
+        {
+          "name": "Crear pedido (autenticado)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idUsuario\": 2,\n  \"items\": [\n    { \"idProducto\": 1, \"cantidad\": 2 },\n    { \"idProducto\": 3, \"cantidad\": 1 }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ventas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "description": "Ruta AUTENTICADA (cualquier rol). Registra un pedido y reserva stock.\nEl backend consulta el microservicio de productos para obtener precios reales y descuenta el stock de forma atomica.\n\nRespuesta esperada: 201 Created\n{\n  \"idPedido\": 1,\n  \"idUsuario\": 2,\n  \"subtotal\": 2999.70,\n  \"total\": 2999.70,\n  \"estado\": \"PENDIENTE\",\n  \"stockDevuelto\": false,\n  \"fechaPedido\": \"...\",\n  \"detalles\": [\n    { \"idDetalle\": 1, \"idProducto\": 1, \"nombreProducto\": \"...\", \"precioUnitario\": 2499.90, \"cantidad\": 2, \"subtotal\": 4999.80 }\n  ]\n}\n\nErrores de negocio: stock insuficiente, cantidad <= 0, producto inexistente o desactivado."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar pedidos (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ventas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Devuelve el listado completo de pedidos de todos los usuarios.\n\nRespuesta esperada: 200 OK con arreglo de pedidos.\nSi el token no es ADMIN: 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar pedido (autenticado)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ventas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ventas",
+                "1"
+              ]
+            },
+            "description": "Ruta AUTENTICADA. Consulta un pedido por su id, incluyendo sus detalles.\n\nRespuesta esperada: 200 OK con el pedido. Si no existe: 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Pedidos por usuario (autenticado)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ventas/usuario/2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ventas",
+                "usuario",
+                "2"
+              ]
+            },
+            "description": "Ruta AUTENTICADA. Devuelve los pedidos de un usuario concreto.\n\nRespuesta esperada: 200 OK con el arreglo de pedidos del usuario indicado."
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar estado (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ENTREGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ventas/1/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ventas",
+                "1",
+                "estado"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Cambia el estado del pedido.\nValores permitidos: PENDIENTE, PAGADO, RECHAZADO, CANCELADO, ENTREGADO.\nAl pasar a CANCELADO se devuelve el stock reservado UNA SOLA VEZ (bandera stockDevuelto).\n\nRespuesta esperada: 200 OK con el pedido actualizado. Si el token no es ADMIN: 403."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pagos",
+      "description": "Pagos SIMULADOS (no hay pasarela bancaria real). Simular y consultar un pago requiere token; el listado por pedido es exclusivo de ADMIN.",
+      "item": [
+        {
+          "name": "Simular pago aprobado (autenticado)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idPedido\": 1,\n  \"metodoPago\": \"YAPE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pagos/simular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "simular"
+              ]
+            },
+            "description": "Ruta AUTENTICADA. Simula un pago aprobado usando YAPE.\nMetodos validos: EFECTIVO, YAPE, PLIN, TRANSFERENCIA, TARJETA_PRUEBA.\n\nRespuesta esperada: 201 Created\n{\n  \"idPago\": 1,\n  \"idPedido\": 1,\n  \"monto\": 2999.70,\n  \"metodoPago\": \"YAPE\",\n  \"estadoPago\": \"APROBADO\",\n  \"codigoOperacion\": \"OP-1A2B3C4D\",\n  \"fechaPago\": \"...\"\n}\n\nSi el pago se aprueba, el pedido pasa a estado PAGADO."
+          },
+          "response": []
+        },
+        {
+          "name": "Simular pago rechazado (autenticado)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idPedido\": 1,\n  \"metodoPago\": \"TARJETA_PRUEBA\",\n  \"numeroTarjeta\": \"4111111111110000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pagos/simular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "simular"
+              ]
+            },
+            "description": "Ruta AUTENTICADA. Fuerza un pago RECHAZADO: una tarjeta que termina en 0000 se considera rechazada.\nTambien se puede enviar \"simularResultado\":\"RECHAZADO\".\n\nRespuesta esperada: 201 Created con estadoPago = RECHAZADO.\nEl pedido NO debe marcarse como PAGADO."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar pago (autenticado)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "1"
+              ]
+            },
+            "description": "Ruta AUTENTICADA. Consulta un pago por su id.\n\nRespuesta esperada: 200 OK con el pago (idPago, idPedido, monto, metodoPago, estadoPago, codigoOperacion, fechaPago). Si no existe: 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Pagos por pedido (ADMIN)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/pedido/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "pedido",
+                "1"
+              ]
+            },
+            "description": "Ruta SOLO ADMIN. Lista los pagos asociados a un pedido concreto.\n\nRespuesta esperada: 200 OK con el arreglo de pagos del pedido.\nSi el token no es ADMIN: 403."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
